@@ -1,0 +1,89 @@
+/* 
+   PROJECT 15: CUSTOMER AND CONTRACT MANAGEMENT SYSTEM
+   Author: Vũ Thị Thu Trang 
+   Description: Database Schema with Strict Constraints
+*/
+
+#KHỞI TẠO DATABASE
+CREATE DATABASE IF NOT EXISTS ContractManagement;
+USE ContractManagement;
+
+#BẢNG DỊCH VỤ (SERVICES)
+#Đây là bảng danh mục, cần được tạo trước.
+CREATE TABLE Services (
+    ServiceID VARCHAR(20) NOT NULL,
+    ServiceName VARCHAR(100) NOT NULL,
+    Description TEXT,
+    UnitPrice DECIMAL(18, 2) NOT NULL,
+    
+    CONSTRAINT PK_Services PRIMARY KEY (ServiceID),
+    CONSTRAINT CHK_UnitPrice CHECK (UnitPrice >= 0) #Giá không thể âm
+) ENGINE=InnoDB;
+
+#BẢNG KHÁCH HÀNG (CUSTOMERS)
+#Thông tin định danh khách hàng phải duy nhất.
+CREATE TABLE Customers (
+    CustomerID VARCHAR(20) NOT NULL,
+    CustomerName VARCHAR(100) NOT NULL,
+    Address VARCHAR(255),
+    PhoneNumber VARCHAR(15) NOT NULL,
+    
+    CONSTRAINT PK_Customers PRIMARY KEY (CustomerID),
+    CONSTRAINT UQ_PhoneNumber UNIQUE (PhoneNumber) #Chống trùng lặp SĐT
+) ENGINE=InnoDB;
+
+#BẢNG HỢP ĐỒNG (CONTRACTS)
+#Trung tâm của hệ thống, kết nối Khách hàng và Dịch vụ.
+CREATE TABLE Contracts (
+    ContractID VARCHAR(20) NOT NULL,
+    CustomerID VARCHAR(20) NOT NULL,
+    ServiceID VARCHAR(20) NOT NULL,
+    SignDate DATE NOT NULL,
+    Duration INT NOT NULL, -- Thời hạn (tháng)
+    TotalValue DECIMAL(18, 2) NOT NULL,
+    Status ENUM('Active', 'Expired', 'Terminated') DEFAULT 'Active', #Khắt khe về trạng thái
+    Quantity INT DEFAULT 1,
+
+    CONSTRAINT PK_Contracts PRIMARY KEY (ContractID),
+    CONSTRAINT FK_Contract_Customer FOREIGN KEY (CustomerID) 
+        REFERENCES Customers(CustomerID) ON DELETE CASCADE ON UPDATE CASCADE, #Xóa khách xóa luôn HĐ
+    CONSTRAINT FK_Contract_Service FOREIGN KEY (ServiceID) 
+        REFERENCES Services(ServiceID) ON UPDATE CASCADE,
+    CONSTRAINT CHK_Duration CHECK (Duration > 0),
+    CONSTRAINT CHK_TotalValue CHECK (TotalValue >= 0)
+) ENGINE=InnoDB;
+
+#BẢNG HÓA ĐƠN (INVOICES)
+#Quản lý nghĩa vụ tài chính phát sinh từ hợp đồng
+CREATE TABLE Invoices (
+    InvoiceID VARCHAR(20) NOT NULL,
+    ContractID VARCHAR(20) NOT NULL,
+    IssueDate DATE NOT NULL,
+    TotalAmount DECIMAL(18, 2) NOT NULL,
+    InvoiceNotes TEXT, #ghi note ngày tháng,...
+
+    CONSTRAINT PK_Invoices PRIMARY KEY (InvoiceID),
+    CONSTRAINT FK_Invoice_Contract FOREIGN KEY (ContractID) 
+        REFERENCES Contracts(ContractID) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT CHK_TotalAmount CHECK (TotalAmount >= 0)
+) ENGINE=InnoDB;
+
+#BẢNG THANH TOÁN (PAYMENTS)
+#Theo dõi dòng tiền thực tế đi vào hệ thống
+CREATE TABLE Payments (
+    PaymentID VARCHAR(20) NOT NULL,
+    ContractID VARCHAR(20) NOT NULL,
+    PaymentDate DATE NOT NULL,
+    Amount DECIMAL(18, 2) NOT NULL,
+
+    CONSTRAINT PK_Payments PRIMARY KEY (PaymentID),
+    CONSTRAINT FK_Payment_Contract FOREIGN KEY (ContractID) 
+        REFERENCES Contracts(ContractID) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT CHK_PaymentAmount CHECK (Amount > 0) #Khoản thanh toán phải có giá trị thực
+) ENGINE=InnoDB;
+
+#TỐI ƯU HÓA TRUY VẤN (INDEXES)
+#Tăng tốc độ tìm kiếm cho báo cáo và quản lý khách hàng
+CREATE INDEX IDX_CustomerName ON Customers(CustomerName);
+CREATE INDEX IDX_ContractStatus ON Contracts(Status);
+CREATE INDEX IDX_PaymentDate ON Payments(PaymentDate);
